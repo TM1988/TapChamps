@@ -7,10 +7,15 @@ class TapRaceGame {
         this.gameState = 'waiting';
         this.isReady = false;
         this.canTap = false;
+        this.players = [];
+        this.activityTimeout = null;
         
         this.initializeElements();
         this.setupEventListeners();
         this.setupSocketListeners();
+        
+        // Debounced functions for performance
+        this.debouncedUpdatePlayers = this.debounce(this.updatePlayersList.bind(this), 100);
     }
 
     initializeElements() {
@@ -100,25 +105,34 @@ class TapRaceGame {
         this.socket.on('joined-room', (data) => {
             this.roomId = data.roomId;
             this.currentRoomIdSpan.textContent = data.roomId;
-            this.updatePlayersList(data.players);
+            this.players = data.players || [];
+            this.debouncedUpdatePlayers();
             this.showScreen('lobby');
         });
 
         this.socket.on('player-joined', (data) => {
-            this.updatePlayersList(data.players);
-            this.showLiveActivity(`${data.playerName} joined the room!`);
+            this.players = data.players || [];
+            this.debouncedUpdatePlayers();
+            this.showLiveActivity(`${data.playerName} joined!`);
         });
 
         this.socket.on('player-left', (data) => {
-            this.updatePlayersList(data.players);
-            this.showLiveActivity('A player left the room');
+            this.players = data.players || [];
+            this.debouncedUpdatePlayers();
+            this.showLiveActivity('Player left');
         });
 
         this.socket.on('player-ready', (data) => {
-            this.updatePlayersList();
+            // Update the specific player's ready status
+            const player = this.players.find(p => p.id === data.playerId);
+            if (player) {
+                player.isReady = true;
+            }
+            this.debouncedUpdatePlayers();
+            
             if (data.allReady) {
                 this.waitingMessage.classList.add('hidden');
-                this.showLiveActivity('All players ready! Game starting soon...');
+                this.showLiveActivity('All ready! Starting...');
             }
         });
 
@@ -134,8 +148,7 @@ class TapRaceGame {
         });
 
         this.socket.on('player-tapped', (data) => {
-            this.showLiveActivity(`${data.playerName} tapped! ${data.reactionTime}ms (+${data.points} pts)`);
-            this.updateScores();
+            this.showLiveActivity(`${data.playerName}: ${data.reactionTime}ms!`);
         });
 
         this.socket.on('round-end', (data) => {
@@ -182,24 +195,33 @@ class TapRaceGame {
     }
 
     toggleReady() {
-        if (!this.isReady) {
+        if (!this.isReady && this.roomId) {
             this.socket.emit('ready-to-play');
             this.isReady = true;
             this.readyBtn.textContent = 'Ready!';
             this.readyBtn.disabled = true;
-            this.readyBtn.classList.add('btn-success');
+            this.readyBtn.style.background = '#28a745';
+            this.readyBtn.style.color = 'white';
         }
     }
 
     leaveRoom() {
-        this.socket.disconnect();
-        this.socket.connect();
+        if (this.roomId) {
+            this.socket.emit('leave-room');
+        }
+        this.resetPlayerState();
+        this.showScreen('mainMenu');
+    }
+
+    resetPlayerState() {
         this.isReady = false;
         this.roomId = null;
+        this.players = [];
         this.readyBtn.textContent = 'Ready to Play!';
         this.readyBtn.disabled = false;
-        this.readyBtn.classList.remove('btn-success');
-        this.backToMenu();
+        this.readyBtn.style.background = '';
+        this.readyBtn.style.color = '';
+        this.waitingMessage.classList.add('hidden');
     }
 
     startCountdown() {
@@ -235,7 +257,6 @@ class TapRaceGame {
         this.gameMessage.textContent = `Round ${data.roundNumber} completed!`;
         
         this.displayRoundResults(data.results);
-        this.updateScores();
         
         if (data.roundNumber < data.maxRounds) {
             setTimeout(() => {
@@ -246,138 +267,7 @@ class TapRaceGame {
 
     endGame(data) {
         this.displayFinalResults(data.finalResults);
-        this.showScreen('final-results');
-    }
-
-    displayRoundResults(results) {
-        this.roundResults.classList.remove('hidden');
-        this.roundResultsList.innerHTML = '';
-
-        results.forEach((result, index) => {
-            const resultItem = document.createElement('div');
-            resultItem.className = `result-item ${this.getRankClass(index)}`;
-            
-            const reactionTime = result.reactionTime ? `${result.reactionTime}ms` : 'No tap';
-            const points = result.reactionTime ? `+${this.calculatePoints(result.reactionTime)} pts` : '+0 pts';
-            
-            resultItem.innerHTML = `
-                <div class="result-name">${index + 1}. ${result.name}</div>
-                <div>
-                    <div class="result-time">${reactionTime}</div>
-                    <div class="result-points">${points}</div>
-                </div>
-            `;
-            
-            this.roundResultsList.appendChild(resultItem);
-        });
-    }
-
-    displayFinalResults(results) {
-        this.finalResultsList.innerHTML = '';
-
-        results.forEach((result) => {
-            const resultItem = document.createElement('div');
-            resultItem.className = `result-item ${this.getRankClass(result.rank - 1)}`;
-            
-            resultItem.innerHTML = `
-                <div class="result-name">
-                    ${result.rank}. ${result.name}
-                </div>
-                <div>
-                    <div class="result-time">${result.score} points</div>
-                    <div class="result-points">Avg: ${Math.round(result.avgReactionTime)}ms</div>
-                </div>
-            `;
-            
-            this.finalResultsList.appendChild(resultItem);
-        });
-    }
-
-    displayLeaderboard(leaderboard) {
-        this.leaderboardList.innerHTML = '';
-
-        if (leaderboard.length === 0) {
-            this.leaderboardList.innerHTML = '<p style="text-align: center; color: #666;">No players yet. Be the first!</p>';
-            return;
-        }
-
-        leaderboard.forEach((player, index) => {
-            const leaderboardItem = document.createElement('div');
-            leaderboardItem.className = 'leaderboard-item';
-            
-            leaderboardItem.innerHTML = `
-                <div class="leaderboard-rank">${index + 1}</div>
-                <div class="leaderboard-info">
-                    <div class="leaderboard-name">${player.name}</div>
-                    <div class="leaderboard-stats">
-                        ${player.gamesPlayed} games • Best: ${player.bestReactionTime}ms • Avg: ${player.avgReactionTime}ms
-                    </div>
-                </div>
-                <div class="leaderboard-score">${Math.round(player.avgScore)}</div>
-            `;
-            
-            this.leaderboardList.appendChild(leaderboardItem);
-        });
-    }
-
-    updatePlayersList(players) {
-        if (!players) return;
-        
-        this.playersContainer.innerHTML = '';
-        
-        players.forEach((player) => {
-            const playerItem = document.createElement('div');
-            playerItem.className = `player-item ${player.isReady ? 'ready' : ''}`;
-            
-            playerItem.innerHTML = `
-                <div class="player-name">${player.name}</div>
-                <div class="player-status ${player.isReady ? 'status-ready' : 'status-waiting'}">
-                    ${player.isReady ? '✓ Ready' : '⏳ Waiting'}
-                </div>
-            `;
-            
-            this.playersContainer.appendChild(playerItem);
-        });
-
-        // Show/hide waiting message
-        const allReady = players.every(p => p.isReady);
-        if (allReady && players.length > 0) {
-            this.waitingMessage.classList.add('hidden');
-        } else if (this.isReady) {
-            this.waitingMessage.classList.remove('hidden');
-        }
-    }
-
-    updateScores() {
-        // This would be updated with real-time score data from the server
-        // For now, we'll leave it empty as scores are managed server-side
-    }
-
-    showScreen(screenName) {
-        // Hide all screens
-        Object.values(this.screens).forEach(screen => {
-            screen.classList.remove('active');
-        });
-
-        // Show target screen
-        if (this.screens[screenName]) {
-            this.screens[screenName].classList.add('active');
-            this.currentScreen = screenName;
-        }
-    }
-
-    showLiveActivity(message) {
-        this.activityContent.textContent = message;
-        this.liveActivity.classList.remove('hidden');
-        
-        setTimeout(() => {
-            this.liveActivity.classList.add('hidden');
-        }, 3000);
-    }
-
-    showError(message) {
-        // Simple error display - could be enhanced with a proper modal
-        alert(message);
+        this.showScreen('finalResults');
     }
 
     getRankClass(index) {
@@ -397,16 +287,210 @@ class TapRaceGame {
         return 20;
     }
 
+    displayRoundResults(results) {
+        this.roundResults.classList.remove('hidden');
+        
+        // Use DocumentFragment for better performance
+        const fragment = document.createDocumentFragment();
+        
+        results.forEach((result, index) => {
+            const resultItem = document.createElement('div');
+            resultItem.className = `result-item ${this.getRankClass(index)}`;
+            
+            const reactionTime = result.reactionTime ? `${result.reactionTime}ms` : 'No tap';
+            const points = result.reactionTime ? `+${this.calculatePoints(result.reactionTime)} pts` : '+0 pts';
+            
+            resultItem.innerHTML = `
+                <div class="result-name">${index + 1}. ${this.escapeHtml(result.name)}</div>
+                <div>
+                    <div class="result-time">${reactionTime}</div>
+                    <div class="result-points">${points}</div>
+                </div>
+            `;
+            
+            fragment.appendChild(resultItem);
+        });
+        
+        this.roundResultsList.innerHTML = '';
+        this.roundResultsList.appendChild(fragment);
+    }
+
+    displayFinalResults(results) {
+        const fragment = document.createDocumentFragment();
+
+        results.forEach((result) => {
+            const resultItem = document.createElement('div');
+            resultItem.className = `result-item ${this.getRankClass(result.rank - 1)}`;
+            
+            resultItem.innerHTML = `
+                <div class="result-name">
+                    ${result.rank}. ${this.escapeHtml(result.name)}
+                </div>
+                <div>
+                    <div class="result-time">${result.score} points</div>
+                    <div class="result-points">Avg: ${Math.round(result.avgReactionTime)}ms</div>
+                </div>
+            `;
+            
+            fragment.appendChild(resultItem);
+        });
+        
+        this.finalResultsList.innerHTML = '';
+        this.finalResultsList.appendChild(fragment);
+    }
+
+    displayLeaderboard(leaderboard) {
+        if (leaderboard.length === 0) {
+            this.leaderboardList.innerHTML = '<p style="text-align: center; color: #666;">No players yet. Be the first!</p>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+
+        leaderboard.forEach((player, index) => {
+            const leaderboardItem = document.createElement('div');
+            leaderboardItem.className = 'leaderboard-item';
+            
+            leaderboardItem.innerHTML = `
+                <div class="leaderboard-rank">${index + 1}</div>
+                <div class="leaderboard-info">
+                    <div class="leaderboard-name">${this.escapeHtml(player.name)}</div>
+                    <div class="leaderboard-stats">
+                        ${player.gamesPlayed} games • Best: ${player.bestReactionTime}ms • Avg: ${player.avgReactionTime}ms
+                    </div>
+                </div>
+                <div class="leaderboard-score">${Math.round(player.avgScore)}</div>
+            `;
+            
+            fragment.appendChild(leaderboardItem);
+        });
+        
+        this.leaderboardList.innerHTML = '';
+        this.leaderboardList.appendChild(fragment);
+    }
+
+    updatePlayersList(players = this.players) {
+        if (!players || !Array.isArray(players)) return;
+        
+        // Use DocumentFragment for better performance
+        const fragment = document.createDocumentFragment();
+        
+        players.forEach((player) => {
+            const playerItem = document.createElement('div');
+            playerItem.className = `player-item ${player.isReady ? 'ready' : ''}`;
+            
+            playerItem.innerHTML = `
+                <div class="player-name">${this.escapeHtml(player.name)}</div>
+                <div class="player-status ${player.isReady ? 'status-ready' : 'status-waiting'}">
+                    ${player.isReady ? '✓ Ready' : '⏳ Waiting'}
+                </div>
+            `;
+            
+            fragment.appendChild(playerItem);
+        });
+        
+        // Single DOM update
+        this.playersContainer.innerHTML = '';
+        this.playersContainer.appendChild(fragment);
+
+        // Update waiting message efficiently
+        const allReady = players.length > 0 && players.every(p => p.isReady);
+        this.waitingMessage.classList.toggle('hidden', allReady || !this.isReady);
+    }
+
+    updateScores() {
+        // Placeholder for score updates - handled by server
+        // Could be enhanced to show real-time score updates
+    }
+
+    showScreen(screenName) {
+        // Hide all screens
+        Object.values(this.screens).forEach(screen => {
+            screen.classList.remove('active');
+        });
+
+        // Show target screen
+        if (this.screens[screenName]) {
+            this.screens[screenName].classList.add('active');
+            this.currentScreen = screenName;
+        }
+    }
+
+    showLiveActivity(message) {
+        // Clear previous timeout
+        if (this.activityTimeout) {
+            clearTimeout(this.activityTimeout);
+        }
+        
+        this.activityContent.textContent = message;
+        this.liveActivity.classList.remove('hidden');
+        
+        this.activityTimeout = setTimeout(() => {
+            this.liveActivity.classList.add('hidden');
+        }, 2000);
+    }
+
+    showError(message) {
+        // Create a simple toast notification instead of alert
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #dc3545;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 10000;
+            font-weight: 600;
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            document.body.removeChild(toast);
+        }, 3000);
+    }
+
+    // Utility functions
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
     playAgain() {
-        this.isReady = false;
-        this.readyBtn.textContent = 'Ready to Play!';
-        this.readyBtn.disabled = false;
-        this.readyBtn.classList.remove('btn-success');
+        this.resetPlayerState();
         this.showScreen('lobby');
+        // Re-emit ready state if we were already ready
+        setTimeout(() => {
+            if (this.roomId) {
+                this.socket.emit('ready-to-play');
+                this.isReady = true;
+                this.readyBtn.textContent = 'Ready!';
+                this.readyBtn.disabled = true;
+                this.readyBtn.style.background = '#28a745';
+                this.readyBtn.style.color = 'white';
+            }
+        }, 100);
     }
 
     backToMenu() {
         this.leaveRoom();
+        this.resetPlayerState();
         this.showScreen('mainMenu');
         
         // Clear inputs

@@ -11,6 +11,9 @@ body {
     min-height: 100vh;
     color: #333;
     overflow-x: hidden;
+    /* Optimize rendering */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* Screen management */
@@ -18,6 +21,8 @@ body {
     display: none;
     min-height: 100vh;
     padding: 20px;
+    /* Optimize transitions */
+    will-change: transform;
 }
 
 .screen.active {
@@ -40,12 +45,13 @@ body {
     color: #fff;
     text-shadow: 0 4px 8px rgba(0,0,0,0.3);
     margin-bottom: 10px;
-    animation: titlePulse 2s ease-in-out infinite alternate;
+    /* Simplified animation for better performance */
+    animation: titlePulse 3s ease-in-out infinite alternate;
 }
 
 @keyframes titlePulse {
     from { transform: scale(1); }
-    to { transform: scale(1.05); }
+    to { transform: scale(1.02); }
 }
 
 .game-subtitle {
@@ -103,10 +109,12 @@ small {
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     margin-bottom: 15px;
     text-transform: uppercase;
     letter-spacing: 1px;
+    /* Performance optimization */
+    will-change: transform;
 }
 
 .btn-primary {
@@ -115,8 +123,8 @@ small {
     box-shadow: 0 8px 20px rgba(102,126,234,0.3);
 }
 
-.btn-primary:hover {
-    transform: translateY(-3px);
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
     box-shadow: 0 12px 25px rgba(102,126,234,0.4);
 }
 
@@ -126,9 +134,9 @@ small {
     border: 2px solid #e0e0e0;
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
     background: #e9ecef;
-    transform: translateY(-2px);
+    transform: translateY(-1px);
 }
 
 .btn:disabled {
@@ -259,51 +267,36 @@ small {
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     border: 5px solid #e0e0e0;
     position: relative;
-    overflow: hidden;
-}
-
-.tap-circle::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
-    transform: rotate(-45deg);
-    transition: all 0.3s ease;
+    /* Performance optimizations */
+    will-change: transform, background-color, border-color;
+    transform: translateZ(0); /* Force hardware acceleration */
 }
 
 .tap-circle.waiting {
     border-color: #ffc107;
     background: rgba(255,193,7,0.9);
-    animation: pulse 1.5s ease-in-out infinite;
+    animation: pulse 2s ease-in-out infinite;
 }
 
 .tap-circle.active {
     border-color: #28a745;
     background: rgba(40,167,69,0.9);
-    animation: activeGlow 0.5s ease-in-out infinite alternate;
-    transform: scale(1.1);
+    transform: scale(1.05) translateZ(0);
+    box-shadow: 0 0 20px rgba(40,167,69,0.6);
 }
 
 .tap-circle.tapped {
     border-color: #17a2b8;
     background: rgba(23,162,184,0.9);
-    transform: scale(0.95);
+    transform: scale(0.95) translateZ(0);
 }
 
 @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-}
-
-@keyframes activeGlow {
-    0% { box-shadow: 0 0 20px rgba(40,167,69,0.5); }
-    100% { box-shadow: 0 0 40px rgba(40,167,69,0.8); }
+    0%, 100% { transform: scale(1) translateZ(0); }
+    50% { transform: scale(1.02) translateZ(0); }
 }
 
 #tap-text {
@@ -483,7 +476,12 @@ small {
     border-radius: 15px;
     color: #333;
     font-weight: 600;
-    animation: pulse 2s ease-in-out infinite;
+    animation: gentlePulse 3s ease-in-out infinite;
+}
+
+@keyframes gentlePulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
 }
 
 /* Responsive design */

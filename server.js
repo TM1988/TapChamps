@@ -273,7 +273,7 @@ io.on('connection', (socket) => {
         if (!room) return;
 
         const player = room.players.get(socket.id);
-        if (player) {
+        if (player && !player.isReady) {
             player.isReady = true;
             
             // Check if all players are ready
@@ -285,9 +285,32 @@ io.on('connection', (socket) => {
             });
 
             // Start game if all ready and game is waiting
-            if (allReady && room.gameState === 'waiting') {
+            if (allReady && room.gameState === 'waiting' && room.players.size > 0) {
                 setTimeout(() => room.startCountdown(), 1000);
             }
+        }
+    });
+
+    socket.on('leave-room', () => {
+        if (socket.roomId) {
+            const room = gameRooms.get(socket.roomId);
+            if (room) {
+                room.removePlayer(socket.id);
+                
+                // Notify other players
+                socket.to(socket.roomId).emit('player-left', {
+                    playerId: socket.id,
+                    players: Array.from(room.players.values())
+                });
+
+                // Clean up empty rooms
+                if (room.players.size === 0) {
+                    gameRooms.delete(socket.roomId);
+                }
+            }
+            
+            socket.leave(socket.roomId);
+            socket.roomId = null;
         }
     });
 
