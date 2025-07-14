@@ -264,8 +264,28 @@ io.on('connection', (socket) => {
     socket.on('join-room', (data) => {
         const { roomId, playerName, gameMode } = data;
         
+        // Validate input
+        if (!roomId || !playerName || typeof roomId !== 'string' || typeof playerName !== 'string') {
+            socket.emit('error', 'Invalid room ID or player name');
+            return;
+        }
+        
+        // Leave current room if in one
+        if (socket.roomId && socket.roomId !== roomId) {
+            const oldRoom = gameRooms.get(socket.roomId);
+            if (oldRoom) {
+                oldRoom.removePlayer(socket.id);
+                socket.to(socket.roomId).emit('player-left', {
+                    playerId: socket.id,
+                    players: Array.from(oldRoom.players.values())
+                });
+            }
+            socket.leave(socket.roomId);
+        }
+        
         if (!gameRooms.has(roomId)) {
             gameRooms.set(roomId, new GameRoom(roomId, gameMode || 'classic'));
+            console.log(`Created new room: ${roomId} with mode: ${gameMode || 'classic'}`);
         }
 
         const room = gameRooms.get(roomId);
@@ -280,22 +300,32 @@ io.on('connection', (socket) => {
             gameMode: room.gameMode,
             players: Array.from(room.players.values()),
             gameState: room.gameState,
-            roundNumber: room.roundNumber
+            roundNumber: room.roundNumber,
+            chatMessages: room.chatMessages
         });
 
-        // Notify other players
+        // Notify other players in this room only
         socket.to(roomId).emit('player-joined', {
             playerId: socket.id,
             playerName: playerName,
             players: Array.from(room.players.values())
         });
+        
+        console.log(`Player ${playerName} joined room ${roomId}. Room now has ${room.players.size} players`);
     });
 
     socket.on('ready-to-play', () => {
-        if (!socket.roomId) return;
+        if (!socket.roomId) {
+            socket.emit('error', 'Not in a room');
+            return;
+        }
         
         const room = gameRooms.get(socket.roomId);
-        if (!room) return;
+        if (!room) {
+            socket.emit('error', 'Room not found');
+            delete socket.roomId;
+            return;
+        }
 
         const player = room.players.get(socket.id);
         if (player && !player.isReady) {
@@ -304,6 +334,7 @@ io.on('connection', (socket) => {
             // Check if all players are ready
             const allReady = Array.from(room.players.values()).every(p => p.isReady);
             
+            // Notify only players in this room
             io.to(socket.roomId).emit('player-ready', {
                 playerId: socket.id,
                 allReady: allReady
@@ -340,12 +371,19 @@ io.on('connection', (socket) => {
     });
 
     socket.on('tap', () => {
-        if (!socket.roomId) return;
+        if (!socket.roomId) {
+            socket.emit('error', 'Not in a room');
+            return;
+        }
         
         const room = gameRooms.get(socket.roomId);
-        if (room) {
-            room.handleTap(socket.id);
+        if (!room) {
+            socket.emit('error', 'Room not found');
+            delete socket.roomId;
+            return;
         }
+        
+        room.handleTap(socket.id);
     });
 
     socket.on('get-leaderboard', () => {
@@ -365,14 +403,31 @@ io.on('connection', (socket) => {
     });
 
     socket.on('chat-message', (data) => {
-        if (!socket.roomId) return;
+        if (!socket.roomId) {
+            socket.emit('error', 'Not in a room');
+            return;
+        }
         
         const room = gameRooms.get(socket.roomId);
-        if (!room) return;
+        if (!room) {
+            socket.emit('error', 'Room not found');
+            delete socket.roomId;
+            return;
+        }
+
+        // Validate message data
+        if (!data || !data.playerName || !data.message || typeof data.message !== 'string') {
+            socket.emit('error', 'Invalid message data');
+            return;
+        }
+
+        // Sanitize message
+        const sanitizedMessage = data.message.trim().substring(0, 200);
+        if (!sanitizedMessage) return;
 
         const message = {
             playerName: data.playerName,
-            message: data.message,
+            message: sanitizedMessage,
             timestamp: Date.now()
         };
 
@@ -383,7 +438,7 @@ io.on('connection', (socket) => {
             room.chatMessages = room.chatMessages.slice(-50);
         }
 
-        // Broadcast to all players in room
+        // Broadcast to all players in this room only
         io.to(socket.roomId).emit('chat-message', message);
     });
 
@@ -414,7 +469,7 @@ io.on('connection', (socket) => {
             if (room) {
                 room.removePlayer(socket.id);
                 
-                // Notify other players
+                // Notify other players in the same room only
                 socket.to(socket.roomId).emit('player-left', {
                     playerId: socket.id,
                     players: Array.from(room.players.values())
@@ -422,10 +477,43 @@ io.on('connection', (socket) => {
 
                 // Clean up empty rooms
                 if (room.players.size === 0) {
+                    // Clear any timers to prevent memory leaks
+                    if (room.countdownTimer) {
+                        clearInterval(room.countdownTimer);
+                    }
+                    if (room.gameTimer) {
+                        clearTimeout(room.gameTimer);
+                    }
                     gameRooms.delete(socket.roomId);
+                    console.log('Room cleaned up:', socket.roomId);
                 }
             }
+            
+            socket.leave(socket.roomId);
+            delete socket.roomId;
         }
+    });
+});
+
+// Debug endpoint to check room states (remove in production)
+app.get('/debug/rooms', (req, res) => {
+    const roomData = Array.from(gameRooms.entries()).map(([id, room]) => ({
+        id,
+        playerCount: room.players.size,
+        gameState: room.gameState,
+        gameMode: room.gameMode,
+        roundNumber: room.roundNumber,
+        players: Array.from(room.players.values()).map(p => ({
+            id: p.id,
+            name: p.name,
+            score: p.score,
+            isReady: p.isReady
+        }))
+    }));
+    
+    res.json({
+        totalRooms: gameRooms.size,
+        rooms: roomData
     });
 });
 

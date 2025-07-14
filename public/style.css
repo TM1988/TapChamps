@@ -16,6 +16,25 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* Global interaction fixes */
+* {
+    -webkit-user-select: auto;
+    user-select: auto;
+}
+
+button, input, select, textarea, .clickable {
+    pointer-events: auto !important;
+    -webkit-touch-callout: auto;
+    -webkit-user-select: auto;
+    user-select: auto;
+}
+
+/* Ensure hidden elements don't block interactions */
+.hidden {
+    display: none !important;
+    pointer-events: none !important;
+}
+
 /* Screen management */
 .screen {
     display: none;
@@ -723,10 +742,12 @@ small {
     animation: achievementPop 0.5s ease-out;
     text-align: center;
     min-width: 300px;
+    pointer-events: none;
 }
 
 .achievement-notification.show {
     display: block;
+    pointer-events: auto;
 }
 
 @keyframes achievementPop {
@@ -768,10 +789,12 @@ small {
     z-index: 10000;
     animation: slideInRight 0.3s ease-out;
     min-width: 200px;
+    pointer-events: none;
 }
 
 .powerup-notification.show {
     display: block;
+    pointer-events: auto;
 }
 
 @keyframes slideInRight {
@@ -855,17 +878,4 @@ small {
     .achievement-icon {
         font-size: 2.5rem;
     }
-}
-
-/* Utility classes - ensure these override other styles */
-.hidden {
-    display: none !important;
-    visibility: hidden !important;
-}
-
-/* Override notification default display */
-.achievement-notification.hidden,
-.powerup-notification.hidden {
-    display: none !important;
-    visibility: hidden !important;
 }

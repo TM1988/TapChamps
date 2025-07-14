@@ -1,6 +1,16 @@
 class TapRaceGame {
     constructor() {
-        this.socket = io();
+        // Better socket initialization with Vercel compatibility
+        this.socket = io({
+            transports: ['websocket', 'polling'],
+            timeout: 20000,
+            forceNew: true,
+            reconnection: true,
+            reconnectionDelay: 1000,
+            reconnectionAttempts: 5,
+            maxReconnectionAttempts: 10
+        });
+        
         this.currentScreen = 'main-menu';
         this.roomId = null;
         this.playerName = null;
@@ -120,10 +130,23 @@ class TapRaceGame {
         });
 
         // Game
-        this.tapZone.addEventListener('click', () => this.handleTap());
+        this.tapZone.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.handleTap();
+        });
         this.tapZone.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             this.handleTap();
+        });
+        this.tapZone.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        this.tapZone.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
         });
 
         // Final results
@@ -138,6 +161,35 @@ class TapRaceGame {
 
         // Prevent context menu on tap zone
         this.tapZone.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Add global click handling for better compatibility
+        document.addEventListener('click', (e) => {
+            // Ensure clicks are registered properly
+            if (e.target.tagName === 'BUTTON' || e.target.classList.contains('clickable')) {
+                e.target.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    e.target.style.transform = '';
+                }, 100);
+            }
+        });
+
+        // Add better mobile support
+        document.addEventListener('touchstart', () => {}, { passive: false });
+        
+        // Ensure iOS Safari compatibility
+        document.addEventListener('DOMContentLoaded', () => {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (isMobile) {
+                document.body.style.cursor = 'pointer';
+                // Add click handlers to all buttons for better iOS support
+                const buttons = document.querySelectorAll('button, .clickable');
+                buttons.forEach(btn => {
+                    btn.style.cursor = 'pointer';
+                    btn.style.webkitTouchCallout = 'none';
+                    btn.style.webkitUserSelect = 'none';
+                });
+            }
+        });
     }
 
     setupSocketListeners() {
@@ -242,28 +294,76 @@ class TapRaceGame {
             }
             this.showLiveActivity(`Power-up activated: ${data.powerUp.name}`);
         });
+
+        // Add connection monitoring
+        this.socket.on('connect', () => {
+            console.log('Connected to server');
+            this.showConnectionStatus('Connected', 'success');
+        });
+
+        this.socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+            this.showConnectionStatus('Disconnected', 'error');
+        });
+
+        this.socket.on('reconnect', () => {
+            console.log('Reconnected to server');
+            this.showConnectionStatus('Reconnected', 'success');
+        });
+
+        this.socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+            this.showConnectionStatus('Connection Failed', 'error');
+        });
+
+        this.socket.on('error', (error) => {
+            console.error('Socket error:', error);
+            if (typeof error === 'string') {
+                this.showNotification(error, 'error');
+            }
+        });
     }
 
     joinGame() {
         const playerName = this.playerNameInput.value.trim();
         if (!playerName) {
-            this.showError('Please enter your name');
+            this.showNotification('Please enter your name', 'error');
+            this.playerNameInput.focus();
             return;
         }
 
         if (playerName.length > 20) {
-            this.showError('Name must be 20 characters or less');
+            this.showNotification('Name must be 20 characters or less', 'error');
+            this.playerNameInput.focus();
+            return;
+        }
+
+        // Check socket connection
+        if (!this.socket.connected) {
+            this.showNotification('Not connected to server. Please wait...', 'error');
             return;
         }
 
         this.playerName = playerName;
         const roomId = this.roomIdInput.value.trim() || this.generateRoomId();
 
+        console.log('Joining room:', roomId, 'as', playerName);
+        
         this.socket.emit('join-room', {
             roomId: roomId,
             playerName: playerName,
             gameMode: this.selectedGameMode
         });
+        
+        // Show loading state
+        this.joinGameBtn.disabled = true;
+        this.joinGameBtn.textContent = 'Joining...';
+        
+        // Re-enable button after timeout
+        setTimeout(() => {
+            this.joinGameBtn.disabled = false;
+            this.joinGameBtn.textContent = 'Join Game';
+        }, 5000);
         
         this.soundManager.play('notification');
     }
@@ -534,6 +634,100 @@ class TapRaceGame {
         setTimeout(() => {
             document.body.removeChild(toast);
         }, 3000);
+    }
+
+    showConnectionStatus(message, type) {
+        let statusDiv = document.getElementById('connection-status');
+        if (!statusDiv) {
+            statusDiv = document.createElement('div');
+            statusDiv.id = 'connection-status';
+            statusDiv.style.cssText = `
+                position: fixed;
+                top: 10px;
+                left: 10px;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 0.8rem;
+                font-weight: 600;
+                z-index: 10001;
+                transition: all 0.3s ease;
+            `;
+            document.body.appendChild(statusDiv);
+        }
+        
+        statusDiv.textContent = message;
+        statusDiv.className = type;
+        
+        if (type === 'success') {
+            statusDiv.style.backgroundColor = '#10B981';
+            statusDiv.style.color = 'white';
+        } else if (type === 'error') {
+            statusDiv.style.backgroundColor = '#EF4444';
+            statusDiv.style.color = 'white';
+        }
+        
+        // Hide success messages after 3 seconds
+        if (type === 'success') {
+            setTimeout(() => {
+                if (statusDiv) {
+                    statusDiv.style.opacity = '0';
+                    setTimeout(() => {
+                        if (statusDiv && statusDiv.parentNode) {
+                            statusDiv.parentNode.removeChild(statusDiv);
+                        }
+                    }, 300);
+                }
+            }, 3000);
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        let notificationDiv = document.getElementById('notification');
+        if (!notificationDiv) {
+            notificationDiv = document.createElement('div');
+            notificationDiv.id = 'notification';
+            notificationDiv.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                padding: 20px;
+                border-radius: 12px;
+                font-size: 1rem;
+                font-weight: 600;
+                z-index: 10002;
+                max-width: 300px;
+                text-align: center;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            `;
+            document.body.appendChild(notificationDiv);
+        }
+        
+        notificationDiv.textContent = message;
+        
+        if (type === 'error') {
+            notificationDiv.style.backgroundColor = '#FEE2E2';
+            notificationDiv.style.color = '#B91C1C';
+            notificationDiv.style.border = '2px solid #F87171';
+        } else {
+            notificationDiv.style.backgroundColor = '#DBEAFE';
+            notificationDiv.style.color = '#1E40AF';
+            notificationDiv.style.border = '2px solid #60A5FA';
+        }
+        
+        notificationDiv.style.display = 'block';
+        notificationDiv.style.opacity = '1';
+        
+        setTimeout(() => {
+            if (notificationDiv) {
+                notificationDiv.style.opacity = '0';
+                setTimeout(() => {
+                    if (notificationDiv && notificationDiv.parentNode) {
+                        notificationDiv.parentNode.removeChild(notificationDiv);
+                    }
+                }, 300);
+            }
+        }, 4000);
     }
 
     // Utility functions
