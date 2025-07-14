@@ -518,5 +518,6 @@ app.get('/debug/rooms', (req, res) => {
 });
 
 server.listen(PORT, () => {
-    console.log(`Tap Race server running on port ${PORT}`);
+    console.log(`🎮 Tap Champs server running on port ${PORT}`);
+    console.log(`🌐 Public URL: https://tapchamps-production.up.railway.app`);
 });

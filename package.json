@@ -1,7 +1,7 @@
 {
-  "name": "tap-race-game",
+  "name": "tap-champs",
   "version": "1.0.0",
-  "description": "A real-time multiplayer reflex challenge game",
+  "description": "Tap Champs - Ultimate Reflex Challenge - A real-time multiplayer reflex game",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -1,7 +1,11 @@
 class TapRaceGame {
     constructor() {
-        // Better socket initialization with Vercel compatibility
-        this.socket = io({
+        // Railway deployment socket configuration
+        const socketUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000'
+            : 'https://tapchamps-production.up.railway.app';
+            
+        this.socket = io(socketUrl, {
             transports: ['websocket', 'polling'],
             timeout: 20000,
             forceNew: true,
