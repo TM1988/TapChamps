@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tap Race - Reflex Challenge</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Main Menu -->
+        <div id="main-menu" class="screen active">
+            <div class="container">
+                <h1 class="game-title">⚡ TAP RACE ⚡</h1>
+                <p class="game-subtitle">Ultimate Reflex Challenge</p>
+                
+                <div class="menu-card">
+                    <div class="input-group">
+                        <input type="text" id="player-name" placeholder="Enter your name" maxlength="20">
+                    </div>
+                    
+                    <div class="input-group">
+                        <input type="text" id="room-id" placeholder="Room ID (optional)" maxlength="10">
+                        <small>Leave empty to create a new room</small>
+                    </div>
+                    
+                    <button id="join-game" class="btn btn-primary">Join Game</button>
+                    <button id="view-leaderboard" class="btn btn-secondary">View Leaderboard</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lobby -->
+        <div id="lobby" class="screen">
+            <div class="container">
+                <h2>Game Lobby</h2>
+                <div class="room-info">
+                    <p>Room ID: <span id="current-room-id" class="highlight"></span></p>
+                    <small>Share this ID with friends to play together!</small>
+                </div>
+                
+                <div class="players-list">
+                    <h3>Players</h3>
+                    <div id="players-container"></div>
+                </div>
+                
+                <div class="lobby-actions">
+                    <button id="ready-btn" class="btn btn-primary">Ready to Play!</button>
+                    <button id="leave-room" class="btn btn-secondary">Leave Room</button>
+                </div>
+                
+                <div id="waiting-message" class="waiting-message hidden">
+                    Waiting for all players to be ready...
+                </div>
+            </div>
+        </div>
+
+        <!-- Game -->
+        <div id="game" class="screen">
+            <div class="game-header">
+                <div class="round-info">
+                    Round <span id="current-round">1</span> of <span id="max-rounds">5</span>
+                </div>
+                <div class="scores" id="game-scores"></div>
+            </div>
+            
+            <div class="game-area">
+                <div id="tap-zone" class="tap-zone">
+                    <div id="tap-circle" class="tap-circle">
+                        <span id="tap-text">Wait...</span>
+                    </div>
+                </div>
+                
+                <div id="game-message" class="game-message"></div>
+                
+                <div id="round-results" class="round-results hidden">
+                    <h3>Round Results</h3>
+                    <div id="round-results-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Final Results -->
+        <div id="final-results" class="screen">
+            <div class="container">
+                <h2>🏆 Final Results 🏆</h2>
+                <div id="final-results-list" class="results-list"></div>
+                <div class="final-actions">
+                    <button id="play-again" class="btn btn-primary">Play Again</button>
+                    <button id="back-to-menu" class="btn btn-secondary">Main Menu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div id="leaderboard" class="screen">
+            <div class="container">
+                <h2>🏆 Global Leaderboard 🏆</h2>
+                <div id="leaderboard-list" class="leaderboard-list"></div>
+                <button id="back-from-leaderboard" class="btn btn-secondary">Back to Menu</button>
+            </div>
+        </div>
+
+        <!-- Live Activity -->
+        <div id="live-activity" class="live-activity hidden">
+            <div class="activity-content" id="activity-content"></div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
