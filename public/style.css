@@ -16,23 +16,58 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* Global interaction fixes */
+/* CRITICAL: Global interaction fixes for Vercel deployment */
 * {
-    -webkit-user-select: auto;
-    user-select: auto;
+    -webkit-user-select: auto !important;
+    user-select: auto !important;
+    -webkit-touch-callout: auto !important;
 }
 
-button, input, select, textarea, .clickable {
+html, body {
     pointer-events: auto !important;
-    -webkit-touch-callout: auto;
-    -webkit-user-select: auto;
-    user-select: auto;
+    touch-action: manipulation !important;
+    -webkit-touch-callout: auto !important;
+    -webkit-user-select: auto !important;
+    user-select: auto !important;
+}
+
+button, input, select, textarea, .clickable, [role="button"] {
+    pointer-events: auto !important;
+    -webkit-touch-callout: auto !important;
+    -webkit-user-select: auto !important;
+    user-select: auto !important;
+    touch-action: manipulation !important;
+    cursor: pointer !important;
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+button:hover, .clickable:hover {
+    pointer-events: auto !important;
+}
+
+/* Ensure ALL interactive elements work */
+.btn, .button, input[type="button"], input[type="submit"] {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: rgba(0,0,0,0.1) !important;
 }
 
 /* Ensure hidden elements don't block interactions */
 .hidden {
     display: none !important;
     pointer-events: none !important;
+    visibility: hidden !important;
+}
+
+/* Fix for overlays that might block clicks */
+.overlay, .modal, .notification {
+    pointer-events: none !important;
+}
+
+.overlay.show, .modal.show, .notification.show {
+    pointer-events: auto !important;
 }
 
 /* Screen management */
@@ -127,13 +162,22 @@ small {
     border-radius: 12px;
     font-size: 16px;
     font-weight: 600;
-    cursor: pointer;
+    cursor: pointer !important;
     transition: all 0.2s ease;
     margin-bottom: 15px;
     text-transform: uppercase;
     letter-spacing: 1px;
     /* Performance optimization */
     will-change: transform;
+    /* CRITICAL: Ensure buttons are always clickable */
+    pointer-events: auto !important;
+    position: relative !important;
+    z-index: 10 !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: rgba(0,0,0,0.1) !important;
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
 }
 
 .btn-primary {
@@ -878,4 +922,42 @@ small {
     .achievement-icon {
         font-size: 2.5rem;
     }
+}
+
+/* EMERGENCY VERCEL FIX - Maximum Priority CSS */
+html *, body *, div *, button *, input *, select * {
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+}
+
+/* Force all buttons to be interactive with maximum specificity */
+button[id], .btn[class], input[type="button"][type], input[type="submit"][type] {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    touch-action: manipulation !important;
+    position: relative !important;
+    z-index: 999999 !important;
+    background-color: transparent;
+    border: none;
+}
+
+/* Override any conflicting styles */
+#main-menu button, #lobby button, #game button, #final-results button, 
+#leaderboard button, #achievements button {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    touch-action: manipulation !important;
+    z-index: 999999 !important;
+}
+
+/* Special handling for tap zone */
+#tap-zone {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    touch-action: manipulation !important;
+    z-index: 999999 !important;
+    position: relative !important;
 }

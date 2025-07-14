@@ -100,11 +100,42 @@ class TapRaceGame {
     }
 
     setupEventListeners() {
+        // CRITICAL: Universal click handler for Vercel compatibility
+        const addUniversalClickHandler = (element, handler) => {
+            if (!element) {
+                console.warn('Element not found for click handler');
+                return;
+            }
+            
+            const safeHandler = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Button clicked:', element.id || element.className);
+                handler(e);
+            };
+            
+            // Add multiple event listeners for different scenarios
+            element.addEventListener('click', safeHandler, { passive: false });
+            element.addEventListener('touchstart', safeHandler, { passive: false });
+            element.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, { passive: false });
+            
+            // Force element to be interactive
+            element.style.pointerEvents = 'auto';
+            element.style.cursor = 'pointer';
+            element.style.touchAction = 'manipulation';
+            element.style.webkitTouchCallout = 'none';
+            element.style.position = 'relative';
+            element.style.zIndex = '10';
+        };
+
         // Main menu
-        this.joinGameBtn.addEventListener('click', () => this.joinGame());
-        this.viewLeaderboardBtn.addEventListener('click', () => this.showLeaderboard());
-        this.viewAchievementsBtn.addEventListener('click', () => this.showAchievements());
-        this.toggleSoundBtn.addEventListener('click', () => this.toggleSound());
+        addUniversalClickHandler(this.joinGameBtn, () => this.joinGame());
+        addUniversalClickHandler(this.viewLeaderboardBtn, () => this.showLeaderboard());
+        addUniversalClickHandler(this.viewAchievementsBtn, () => this.showAchievements());
+        addUniversalClickHandler(this.toggleSoundBtn, () => this.toggleSound());
         
         // Game mode selection
         this.gameModeSelect.addEventListener('change', (e) => {
@@ -120,44 +151,27 @@ class TapRaceGame {
         });
 
         // Lobby
-        this.readyBtn.addEventListener('click', () => this.toggleReady());
-        this.leaveRoomBtn.addEventListener('click', () => this.leaveRoom());
+        addUniversalClickHandler(this.readyBtn, () => this.toggleReady());
+        addUniversalClickHandler(this.leaveRoomBtn, () => this.leaveRoom());
         
         // Chat
-        this.sendChatBtn.addEventListener('click', () => this.sendChatMessage());
+        addUniversalClickHandler(this.sendChatBtn, () => this.sendChatMessage());
         this.chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.sendChatMessage();
         });
 
-        // Game
-        this.tapZone.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.handleTap();
-        });
-        this.tapZone.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.handleTap();
-        });
-        this.tapZone.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        });
-        this.tapZone.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        });
+        // Game - CRITICAL: Tap zone with maximum compatibility
+        addUniversalClickHandler(this.tapZone, () => this.handleTap());
 
         // Final results
-        this.playAgainBtn.addEventListener('click', () => this.playAgain());
-        this.backToMenuBtn.addEventListener('click', () => this.backToMenu());
+        addUniversalClickHandler(this.playAgainBtn, () => this.playAgain());
+        addUniversalClickHandler(this.backToMenuBtn, () => this.backToMenu());
 
         // Leaderboard
-        this.backFromLeaderboardBtn.addEventListener('click', () => this.backToMenu());
+        addUniversalClickHandler(this.backFromLeaderboardBtn, () => this.backToMenu());
         
         // Achievements
-        this.backFromAchievementsBtn.addEventListener('click', () => this.backToMenu());
+        addUniversalClickHandler(this.backFromAchievementsBtn, () => this.backToMenu());
 
         // Prevent context menu on tap zone
         this.tapZone.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -861,5 +875,43 @@ class TapRaceGame {
 
 // Initialize the game when the page loads
 document.addEventListener('DOMContentLoaded', () => {
-    new TapRaceGame();
+    console.log('DOM Content Loaded');
+    
+    // CRITICAL: Force all interactive elements to be clickable on Vercel
+    const forceInteractivity = () => {
+        const interactiveSelectors = [
+            'button', 
+            '.btn', 
+            '.button',
+            '[role="button"]',
+            'input[type="button"]',
+            'input[type="submit"]',
+            '.clickable'
+        ];
+        
+        interactiveSelectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(element => {
+                element.style.pointerEvents = 'auto';
+                element.style.cursor = 'pointer';
+                element.style.touchAction = 'manipulation';
+                element.style.webkitTouchCallout = 'none';
+                element.style.webkitUserSelect = 'none';
+                element.style.userSelect = 'none';
+                element.style.position = 'relative';
+                element.style.zIndex = '10';
+                
+                console.log('Made interactive:', element.id || element.className);
+            });
+        });
+    };
+    
+    // Force interactivity immediately and after a delay
+    forceInteractivity();
+    setTimeout(forceInteractivity, 100);
+    setTimeout(forceInteractivity, 500);
+    
+    // Initialize the game
+    window.tapRaceGame = new TapRaceGame();
+    console.log('TapRaceGame initialized');
 });
