@@ -17,17 +17,41 @@ app.use(express.static(path.join(__dirname, 'public')));
 const gameRooms = new Map();
 const playerStats = new Map();
 
+// Simple power-up system
+const powerUpTypes = {
+    speedBoost: { name: 'Speed Boost', icon: '⚡', rarity: 0.3 },
+    doublePoints: { name: 'Double Points', icon: '💎', rarity: 0.2 },
+    shield: { name: 'Shield', icon: '🛡️', rarity: 0.15 },
+    freeze: { name: 'Freeze Others', icon: '❄️', rarity: 0.1 },
+    precision: { name: 'Precision', icon: '🎯', rarity: 0.25 }
+};
+
 class GameRoom {
-    constructor(id) {
+    constructor(id, gameMode = 'classic') {
         this.id = id;
+        this.gameMode = gameMode;
         this.players = new Map();
         this.gameState = 'waiting'; // waiting, countdown, active, finished
         this.roundNumber = 0;
-        this.maxRounds = 5;
+        this.maxRounds = this.getMaxRounds(gameMode);
         this.countdownTimer = null;
         this.gameTimer = null;
         this.currentRoundStart = null;
         this.roundResults = [];
+        this.powerUpsEnabled = gameMode === 'powerUp' || gameMode === 'marathon';
+        this.chatMessages = [];
+    }
+
+    getMaxRounds(gameMode) {
+        const modes = {
+            classic: 5,
+            blitz: 10,
+            powerUp: 5,
+            elimination: 999,
+            marathon: 20,
+            precision: 7
+        };
+        return modes[gameMode] || 5;
     }
 
     addPlayer(playerId, playerName) {
@@ -238,10 +262,10 @@ io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
     socket.on('join-room', (data) => {
-        const { roomId, playerName } = data;
+        const { roomId, playerName, gameMode } = data;
         
         if (!gameRooms.has(roomId)) {
-            gameRooms.set(roomId, new GameRoom(roomId));
+            gameRooms.set(roomId, new GameRoom(roomId, gameMode || 'classic'));
         }
 
         const room = gameRooms.get(roomId);
@@ -253,6 +277,7 @@ io.on('connection', (socket) => {
         // Send current room state
         socket.emit('joined-room', {
             roomId: roomId,
+            gameMode: room.gameMode,
             players: Array.from(room.players.values()),
             gameState: room.gameState,
             roundNumber: room.roundNumber
@@ -337,6 +362,48 @@ io.on('connection', (socket) => {
             .slice(0, 10);
 
         socket.emit('leaderboard', leaderboard);
+    });
+
+    socket.on('chat-message', (data) => {
+        if (!socket.roomId) return;
+        
+        const room = gameRooms.get(socket.roomId);
+        if (!room) return;
+
+        const message = {
+            playerName: data.playerName,
+            message: data.message,
+            timestamp: Date.now()
+        };
+
+        room.chatMessages.push(message);
+        
+        // Keep only last 50 messages
+        if (room.chatMessages.length > 50) {
+            room.chatMessages = room.chatMessages.slice(-50);
+        }
+
+        // Broadcast to all players in room
+        io.to(socket.roomId).emit('chat-message', message);
+    });
+
+    socket.on('use-powerup', (data) => {
+        if (!socket.roomId) return;
+        
+        const room = gameRooms.get(socket.roomId);
+        if (!room || !room.powerUpsEnabled) return;
+
+        const player = room.players.get(socket.id);
+        if (!player) return;
+
+        // Simple power-up activation
+        const powerUp = powerUpTypes[data.powerUpId];
+        if (powerUp) {
+            socket.emit('powerup-activated', {
+                powerUp: powerUp,
+                activePowerUps: [powerUp] // Simplified for demo
+            });
+        }
     });
 
     socket.on('disconnect', () => {

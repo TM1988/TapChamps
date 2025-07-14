@@ -465,76 +465,407 @@ small {
     to { transform: translateX(0); opacity: 1; }
 }
 
-/* Utility classes */
-.hidden {
-    display: none !important;
+/* New feature styles */
+
+/* Game mode selector */
+.game-mode-select {
+    width: 100%;
+    padding: 15px 20px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 16px;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+    cursor: pointer;
 }
 
-.waiting-message {
-    background: rgba(255,255,255,0.9);
+.game-mode-select:focus {
+    outline: none;
+    border-color: #667eea;
+    background: #fff;
+}
+
+/* Settings panel */
+.settings-panel {
+    margin-top: 20px;
     padding: 20px;
-    border-radius: 15px;
+    background: rgba(0,0,0,0.1);
+    border-radius: 12px;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
     color: #333;
     font-weight: 600;
-    animation: gentlePulse 3s ease-in-out infinite;
 }
 
-@keyframes gentlePulse {
-    0%, 100% { opacity: 0.8; }
-    50% { opacity: 1; }
+.btn-toggle {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #dc3545;
+    color: white;
+    min-width: 50px;
 }
 
-/* Responsive design */
+.btn-toggle.active {
+    background: #28a745;
+}
+
+/* Chat system */
+.chat-section {
+    background: rgba(255,255,255,0.9);
+    border-radius: 15px;
+    padding: 20px;
+    margin: 20px 0;
+    max-height: 300px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-messages {
+    flex: 1;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.chat-message {
+    margin-bottom: 8px;
+    padding: 5px 10px;
+    border-radius: 8px;
+    background: rgba(102,126,234,0.1);
+    border-left: 3px solid #667eea;
+}
+
+.chat-message .sender {
+    font-weight: 600;
+    color: #667eea;
+    margin-right: 8px;
+}
+
+.chat-input-container {
+    display: flex;
+    gap: 10px;
+}
+
+#chat-input {
+    flex: 1;
+    padding: 10px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.btn-chat {
+    padding: 10px 20px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-chat:hover {
+    background: #5a6fd8;
+}
+
+/* Power-ups */
+.power-ups-container {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    z-index: 10;
+}
+
+.powerup-item {
+    background: rgba(255,255,255,0.95);
+    border-radius: 12px;
+    padding: 10px 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    text-align: center;
+    min-width: 80px;
+}
+
+.powerup-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    border-color: #667eea;
+}
+
+.powerup-icon {
+    font-size: 24px;
+    margin-bottom: 5px;
+}
+
+.powerup-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+}
+
+.active-powerups {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    z-index: 10;
+}
+
+.active-powerup {
+    background: rgba(40,167,69,0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.powerup-timer {
+    background: rgba(255,255,255,0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+/* Achievements */
+.achievements-list {
+    background: rgba(255,255,255,0.95);
+    padding: 30px;
+    border-radius: 20px;
+    margin-bottom: 30px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.achievement-item {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    margin: 10px 0;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border-left: 4px solid #e0e0e0;
+    transition: all 0.3s ease;
+}
+
+.achievement-item.unlocked {
+    border-left-color: #ffd700;
+    background: rgba(255,215,0,0.1);
+}
+
+.achievement-item.locked {
+    opacity: 0.6;
+}
+
+.achievement-item-icon {
+    font-size: 2rem;
+    margin-right: 15px;
+    filter: grayscale(100%);
+}
+
+.achievement-item.unlocked .achievement-item-icon {
+    filter: none;
+}
+
+.achievement-item-info {
+    flex: 1;
+}
+
+.achievement-item-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 1.1rem;
+}
+
+.achievement-item-desc {
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 2px;
+}
+
+/* Notifications */
+.achievement-notification {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: #333;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    z-index: 10000;
+    animation: achievementPop 0.5s ease-out;
+    text-align: center;
+    min-width: 300px;
+}
+
+.achievement-notification.show {
+    display: block;
+}
+
+@keyframes achievementPop {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    50% { transform: translate(-50%, -50%) scale(1.1); }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+.achievement-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.achievement-icon {
+    font-size: 3rem;
+}
+
+.achievement-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.achievement-desc {
+    font-size: 1rem;
+    opacity: 0.8;
+}
+
+.powerup-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    z-index: 10000;
+    animation: slideInRight 0.3s ease-out;
+    min-width: 200px;
+}
+
+.powerup-notification.show {
+    display: block;
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+.powerup-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.powerup-icon {
+    font-size: 1.5rem;
+}
+
+.powerup-text {
+    font-weight: 600;
+}
+
+/* Tournament styles */
+.tournament-bracket {
+    background: rgba(255,255,255,0.95);
+    padding: 30px;
+    border-radius: 20px;
+    margin-bottom: 30px;
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-size: 1.2rem;
+}
+
+/* Enhanced tap circle for power-ups */
+.tap-circle.powerup {
+    border-color: #ffd700;
+    background: linear-gradient(135deg, rgba(255,215,0,0.9), rgba(255,193,7,0.9));
+    box-shadow: 0 0 30px rgba(255,215,0,0.6);
+}
+
+.tap-circle.frozen {
+    border-color: #17a2b8;
+    background: rgba(23,162,184,0.7);
+    animation: freeze 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes freeze {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(180deg); }
+}
+
+/* Mobile optimizations for new features */
 @media (max-width: 768px) {
-    .game-title {
-        font-size: 2.5rem;
-    }
-    
-    .container {
-        padding: 0 20px;
-    }
-    
-    .menu-card {
-        padding: 30px 20px;
-    }
-    
-    .tap-zone {
-        width: 250px;
-        height: 250px;
-    }
-    
-    .tap-circle {
-        width: 200px;
-        height: 200px;
-    }
-    
-    .game-header {
-        flex-direction: column;
-        gap: 15px;
-    }
-    
-    .scores {
-        gap: 15px;
-    }
-}
-
-@media (max-width: 480px) {
-    .tap-zone {
-        width: 200px;
-        height: 200px;
-    }
-    
-    .tap-circle {
-        width: 180px;
-        height: 180px;
-    }
-    
-    #tap-text {
-        font-size: 1.2rem;
-    }
-    
-    .scores {
-        flex-direction: column;
+    .power-ups-container {
+        top: 10px;
+        left: 10px;
+        right: 10px;
         gap: 10px;
     }
+    
+    .powerup-item {
+        min-width: 60px;
+        padding: 8px 10px;
+    }
+    
+    .powerup-icon {
+        font-size: 20px;
+    }
+    
+    .chat-section {
+        max-height: 200px;
+    }
+    
+    .achievement-notification {
+        min-width: 250px;
+        padding: 20px;
+    }
+    
+    .achievement-icon {
+        font-size: 2.5rem;
+    }
+}
+
+/* Utility classes - ensure these override other styles */
+.hidden {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* Override notification default display */
+.achievement-notification.hidden,
+.powerup-notification.hidden {
+    display: none !important;
+    visibility: hidden !important;
 }
