@@ -51,13 +51,31 @@ class TapRaceGame {
         };
 
         // Main menu elements
-        this.playerNameInput = document.getElementById('player-name');
+        this.playerNameJoinInput = document.getElementById('player-name-join');
+        this.playerNameCreateInput = document.getElementById('player-name-create');
         this.roomIdInput = document.getElementById('room-id');
+        this.joinRoomPasswordInput = document.getElementById('join-room-password');
+        this.createRoomPasswordInput = document.getElementById('create-room-password');
         this.gameModeSelect = document.getElementById('game-mode');
-        this.joinGameBtn = document.getElementById('join-game');
+        
+        // Main action buttons
+        this.joinGameBtn = document.getElementById('join-game-btn');
+        this.createGameBtn = document.getElementById('create-game-btn');
+        this.confirmJoinBtn = document.getElementById('confirm-join');
+        this.confirmCreateBtn = document.getElementById('confirm-create');
+        this.cancelJoinBtn = document.getElementById('cancel-join');
+        this.cancelCreateBtn = document.getElementById('cancel-create');
+        
+        // Secondary buttons
         this.viewLeaderboardBtn = document.getElementById('view-leaderboard');
         this.viewAchievementsBtn = document.getElementById('view-achievements');
         this.toggleSoundBtn = document.getElementById('toggle-sound');
+        
+        // UI sections
+        this.joinGameSection = document.getElementById('join-game-section');
+        this.createGameSection = document.getElementById('create-game-section');
+        this.secondaryActions = document.getElementById('secondary-actions');
+        this.mainActions = document.querySelector('.main-actions');
 
         // Lobby elements
         this.currentRoomIdSpan = document.getElementById('current-room-id');
@@ -135,8 +153,17 @@ class TapRaceGame {
             element.style.zIndex = '10';
         };
 
-        // Main menu
-        addUniversalClickHandler(this.joinGameBtn, () => this.joinGame());
+        // Main menu navigation
+        addUniversalClickHandler(this.joinGameBtn, () => this.showJoinGameSection());
+        addUniversalClickHandler(this.createGameBtn, () => this.showCreateGameSection());
+        addUniversalClickHandler(this.cancelJoinBtn, () => this.showMainMenu());
+        addUniversalClickHandler(this.cancelCreateBtn, () => this.showMainMenu());
+        
+        // Game actions
+        addUniversalClickHandler(this.confirmJoinBtn, () => this.joinExistingGame());
+        addUniversalClickHandler(this.confirmCreateBtn, () => this.createNewGame());
+        
+        // Secondary actions
         addUniversalClickHandler(this.viewLeaderboardBtn, () => this.showLeaderboard());
         addUniversalClickHandler(this.viewAchievementsBtn, () => this.showAchievements());
         addUniversalClickHandler(this.toggleSoundBtn, () => this.toggleSound());
@@ -146,12 +173,25 @@ class TapRaceGame {
             this.selectedGameMode = e.target.value;
         });
         
-        // Allow Enter key to join game
-        this.playerNameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.joinGame();
+        // Allow Enter key navigation
+        this.playerNameJoinInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.roomIdInput.focus();
         });
+        
+        this.playerNameCreateInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.confirmCreateBtn.click();
+        });
+        
         this.roomIdInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.joinGame();
+            if (e.key === 'Enter') this.confirmJoinBtn.click();
+        });
+        
+        this.joinRoomPasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.confirmJoinBtn.click();
+        });
+        
+        this.createRoomPasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.confirmCreateBtn.click();
         });
 
         // Lobby
@@ -342,6 +382,104 @@ class TapRaceGame {
         });
     }
 
+    // UI Navigation Methods
+    showJoinGameSection() {
+        this.joinGameSection.classList.remove('hidden');
+        this.createGameSection.classList.add('hidden');
+        this.secondaryActions.style.display = 'none';
+        this.mainActions.style.display = 'none';
+    }
+
+    showCreateGameSection() {
+        this.createGameSection.classList.remove('hidden');
+        this.joinGameSection.classList.add('hidden');
+        this.secondaryActions.style.display = 'none';
+        this.mainActions.style.display = 'none';
+    }
+
+    showMainMenu() {
+        this.joinGameSection.classList.add('hidden');
+        this.createGameSection.classList.add('hidden');
+        this.secondaryActions.style.display = 'block';
+        this.mainActions.style.display = 'grid';
+    }
+
+    // Game Action Methods
+    joinExistingGame() {
+        const playerName = this.playerNameJoinInput.value.trim();
+        const roomId = this.roomIdInput.value.trim();
+        const password = this.joinRoomPasswordInput.value.trim();
+        
+        if (!playerName) {
+            this.showNotification('Please enter your name', 'error');
+            this.playerNameJoinInput.focus();
+            return;
+        }
+        
+        if (!roomId) {
+            this.showNotification('Please enter a Room ID', 'error');
+            this.roomIdInput.focus();
+            return;
+        }
+        
+        if (playerName.length > 20) {
+            this.showNotification('Name must be 20 characters or less', 'error');
+            this.playerNameJoinInput.focus();
+            return;
+        }
+
+        // Check socket connection
+        if (!this.socket.connected) {
+            this.showNotification('Not connected to server. Please wait...', 'error');
+            return;
+        }
+
+        this.playerName = playerName;
+        console.log('Joining existing room:', roomId, 'as', playerName);
+        
+        this.socket.emit('join-room', {
+            playerName,
+            roomId,
+            password: password || null,
+            gameMode: 'classic' // Default for joining existing rooms
+        });
+    }
+
+    createNewGame() {
+        const playerName = this.playerNameCreateInput.value.trim();
+        const gameMode = this.gameModeSelect.value;
+        const password = this.createRoomPasswordInput.value.trim();
+        
+        if (!playerName) {
+            this.showNotification('Please enter your name', 'error');
+            this.playerNameCreateInput.focus();
+            return;
+        }
+        
+        if (playerName.length > 20) {
+            this.showNotification('Name must be 20 characters or less', 'error');
+            this.playerNameCreateInput.focus();
+            return;
+        }
+
+        // Check socket connection
+        if (!this.socket.connected) {
+            this.showNotification('Not connected to server. Please wait...', 'error');
+            return;
+        }
+
+        this.playerName = playerName;
+        const roomId = this.generateRoomId();
+        console.log('Creating new room:', roomId, 'as', playerName, 'mode:', gameMode);
+        
+        this.socket.emit('join-room', {
+            playerName,
+            roomId,
+            password: password || null,
+            gameMode
+        });
+    }
+
     joinGame() {
         const playerName = this.playerNameInput.value.trim();
         if (!playerName) {
@@ -370,7 +508,8 @@ class TapRaceGame {
         this.socket.emit('join-room', {
             roomId: roomId,
             playerName: playerName,
-            gameMode: this.selectedGameMode
+            gameMode: this.selectedGameMode,
+            password: this.roomPasswordInput.value.trim() || null
         });
         
         // Show loading state
@@ -519,6 +658,12 @@ class TapRaceGame {
     displayFinalResults(results) {
         const fragment = document.createDocumentFragment();
 
+        // Check achievements for the current player
+        const currentPlayerResult = results.find(r => r.name === this.playerName);
+        if (currentPlayerResult) {
+            this.checkAndShowAchievements(currentPlayerResult, results);
+        }
+
         results.forEach((result) => {
             const resultItem = document.createElement('div');
             resultItem.className = `result-item ${this.getRankClass(result.rank - 1)}`;
@@ -538,6 +683,85 @@ class TapRaceGame {
         
         this.finalResultsList.innerHTML = '';
         this.finalResultsList.appendChild(fragment);
+    }
+
+    checkAndShowAchievements(playerResult, allResults) {
+        // Get or create player stats
+        const playerId = 'player_' + this.playerName; // Simple ID based on name
+        let playerStats = JSON.parse(localStorage.getItem('tapChamps_playerStats')) || {
+            gamesPlayed: 0,
+            gamesWon: 0,
+            perfectGames: 0,
+            winStreak: 0,
+            bestReactionTime: Infinity,
+            powerUpsUsed: 0
+        };
+
+        // Update stats based on current game
+        playerStats.gamesPlayed++;
+        
+        if (playerResult.rank === 1) {
+            playerStats.gamesWon++;
+            playerStats.winStreak++;
+            
+            // Check if all rounds were won (perfect game)
+            if (allResults.length > 1 && playerResult.rank === 1) {
+                // This is a simplified check - in a real game you'd track round wins
+                playerStats.perfectGames++;
+            }
+        } else {
+            playerStats.winStreak = 0;
+        }
+
+        if (playerResult.avgReactionTime < playerStats.bestReactionTime) {
+            playerStats.bestReactionTime = playerResult.avgReactionTime;
+        }
+
+        // Save updated stats
+        localStorage.setItem('tapChamps_playerStats', JSON.stringify(playerStats));
+
+        // Check for new achievements
+        const newAchievements = this.achievementSystem.checkAchievements(playerId, playerStats);
+        
+        // Show achievement notifications
+        newAchievements.forEach((achievement, index) => {
+            setTimeout(() => {
+                this.showAchievementNotification(achievement);
+            }, index * 2000); // Stagger notifications
+        });
+    }
+
+    showAchievementNotification(achievement) {
+        // Create achievement notification
+        const notification = document.createElement('div');
+        notification.className = 'achievement-notification show';
+        notification.innerHTML = `
+            <div class="achievement-content">
+                <div class="achievement-icon">${achievement.icon}</div>
+                <div>
+                    <div class="achievement-title">Achievement Unlocked!</div>
+                    <div class="achievement-name">${achievement.name}</div>
+                    <div class="achievement-desc">${achievement.description}</div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Play sound
+        if (this.soundManager) {
+            this.soundManager.play('achievement');
+        }
+        
+        // Auto-remove after 4 seconds
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 500);
+        }, 4000);
     }
 
     displayLeaderboard(leaderboard) {
@@ -822,9 +1046,17 @@ class TapRaceGame {
     displayChatMessage(data) {
         const messageElement = document.createElement('div');
         messageElement.className = 'chat-message';
+        
+        // Format timestamp
+        const timestamp = new Date(data.timestamp).toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
         messageElement.innerHTML = `
             <span class="sender">${this.escapeHtml(data.playerName)}:</span>
             ${this.escapeHtml(data.message)}
+            <span class="timestamp">${timestamp}</span>
         `;
         
         this.chatMessages.appendChild(messageElement);
@@ -832,16 +1064,32 @@ class TapRaceGame {
     }
 
     displayAchievements() {
-        // Simple achievements display for demo
-        const achievements = [
-            { name: 'First Victory', description: 'Win your first game', icon: '🏆', unlocked: true },
-            { name: 'Speed Demon', description: 'React in under 150ms', icon: '⚡', unlocked: false },
-            { name: 'Perfect Round', description: 'Win all rounds in a game', icon: '💯', unlocked: false }
-        ];
+        // Get player stats and achievements
+        const playerId = 'player_' + (this.playerName || 'anonymous');
+        const playerStats = JSON.parse(localStorage.getItem('tapChamps_playerStats')) || {
+            gamesPlayed: 0,
+            gamesWon: 0,
+            perfectGames: 0,
+            winStreak: 0,
+            bestReactionTime: Infinity,
+            powerUpsUsed: 0
+        };
+
+        // Get all achievements and their unlock status
+        const allAchievements = Object.entries(this.achievementSystem.achievements).map(([id, achievement]) => {
+            const unlocked = achievement.condition(playerStats);
+            return {
+                id,
+                name: achievement.name,
+                description: achievement.description,
+                icon: achievement.icon,
+                unlocked
+            };
+        });
         
         this.achievementsList.innerHTML = '';
         
-        achievements.forEach(achievement => {
+        allAchievements.forEach(achievement => {
             const achievementElement = document.createElement('div');
             achievementElement.className = `achievement-item ${achievement.unlocked ? 'unlocked' : 'locked'}`;
             
@@ -850,6 +1098,7 @@ class TapRaceGame {
                 <div class="achievement-item-info">
                     <div class="achievement-item-name">${achievement.name}</div>
                     <div class="achievement-item-desc">${achievement.description}</div>
+                    <div class="achievement-status">${achievement.unlocked ? '✅ Unlocked' : '🔒 Locked'}</div>
                 </div>
             `;
             

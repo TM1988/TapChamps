@@ -26,7 +26,8 @@ class SoundManager {
             roundEnd: this.createRoundEndSound(),
             victory: this.createVictorySound(),
             powerup: this.createPowerupSound(),
-            notification: this.createNotificationSound()
+            notification: this.createNotificationSound(),
+            achievement: this.createAchievementSound()
         };
     }
 
@@ -181,6 +182,33 @@ class SoundManager {
             
             oscillator.start(this.audioContext.currentTime);
             oscillator.stop(this.audioContext.currentTime + 0.2);
+        };
+    }
+
+    createAchievementSound() {
+        return () => {
+            if (!this.audioContext || !this.enabled) return;
+            
+            // Create a celebratory fanfare sound
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+            notes.forEach((freq, index) => {
+                setTimeout(() => {
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(freq, this.audioContext.currentTime);
+                    oscillator.type = 'triangle';
+                    
+                    gainNode.gain.setValueAtTime(this.masterVolume * 0.3, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.4);
+                    
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + 0.4);
+                }, index * 100);
+            });
         };
     }
 

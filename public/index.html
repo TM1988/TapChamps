@@ -35,35 +35,79 @@
                 <p class="game-subtitle">Ultimate Reflex Challenge</p>
                 
                 <div class="menu-card">
-                    <div class="input-group">
-                        <input type="text" id="player-name" placeholder="Enter your name" maxlength="20">
+                    <!-- Main Action Buttons -->
+                    <div class="main-actions">
+                        <button id="join-game-btn" class="btn btn-primary main-action">
+                            <span class="action-icon">🚪</span>
+                            <span class="action-text">Join Game</span>
+                            <small>Join an existing room</small>
+                        </button>
+                        <button id="create-game-btn" class="btn btn-primary main-action">
+                            <span class="action-icon">➕</span>
+                            <span class="action-text">Create Game</span>
+                            <small>Start a new room</small>
+                        </button>
                     </div>
                     
-                    <div class="input-group">
-                        <input type="text" id="room-id" placeholder="Room ID (optional)" maxlength="10">
-                        <small>Leave empty to create a new room</small>
+                    <!-- Join Game Section -->
+                    <div id="join-game-section" class="game-section hidden">
+                        <h3>Join Existing Game</h3>
+                        <div class="input-group">
+                            <input type="text" id="player-name-join" placeholder="Enter your name" maxlength="20">
+                            <small>Choose your display name for the game</small>
+                        </div>
+                        <div class="input-group">
+                            <input type="text" id="room-id" placeholder="Enter Room ID" maxlength="10">
+                            <small>Get the Room ID from your friend</small>
+                        </div>
+                        <div class="input-group">
+                            <input type="password" id="join-room-password" placeholder="Room Password (if required)" maxlength="20">
+                            <small>Enter password if the room is protected</small>
+                        </div>
+                        <div class="section-actions">
+                            <button id="confirm-join" class="btn btn-primary">Join Room</button>
+                            <button id="cancel-join" class="btn btn-secondary">Back</button>
+                        </div>
                     </div>
                     
-                    <div class="input-group">
-                        <select id="game-mode" class="game-mode-select">
-                            <option value="classic">Classic Mode</option>
-                            <option value="blitz">Blitz Mode</option>
-                            <option value="powerUp">Power-Up Madness</option>
-                            <option value="elimination">Elimination</option>
-                            <option value="marathon">Marathon</option>
-                            <option value="precision">Precision Mode</option>
-                        </select>
-                        <small>Choose your preferred game mode</small>
+                    <!-- Create Game Section -->
+                    <div id="create-game-section" class="game-section hidden">
+                        <h3>Create New Game</h3>
+                        <div class="input-group">
+                            <input type="text" id="player-name-create" placeholder="Enter your name" maxlength="20">
+                            <small>Choose your display name for the game</small>
+                        </div>
+                        <div class="input-group">
+                            <select id="game-mode" class="game-mode-select">
+                                <option value="classic">Classic Mode (5 rounds)</option>
+                                <option value="blitz">Blitz Mode (10 fast rounds)</option>
+                                <option value="powerUp">Power-Up Madness (special abilities)</option>
+                                <option value="elimination">Elimination (last one standing)</option>
+                                <option value="marathon">Marathon (20 rounds)</option>
+                                <option value="precision">Precision Mode (accuracy focus)</option>
+                            </select>
+                            <small>Choose your preferred game mode</small>
+                        </div>
+                        <div class="input-group">
+                            <input type="password" id="create-room-password" placeholder="Room Password (optional)" maxlength="20">
+                            <small>Set a password to protect your room</small>
+                        </div>
+                        <div class="section-actions">
+                            <button id="confirm-create" class="btn btn-primary">Create Room</button>
+                            <button id="cancel-create" class="btn btn-secondary">Back</button>
+                        </div>
                     </div>
                     
-                    <button id="join-game" class="btn btn-primary">Join Game</button>
-                    <button id="view-leaderboard" class="btn btn-secondary">View Leaderboard</button>
-                    <button id="view-achievements" class="btn btn-secondary">Achievements</button>
-                    
-                    <div class="settings-panel">
-                        <div class="setting-item">
-                            <span>Sound Effects</span>
-                            <button id="toggle-sound" class="btn-toggle active">ON</button>
+                    <!-- Secondary Actions -->
+                    <div id="secondary-actions" class="secondary-actions">
+                        <button id="view-leaderboard" class="btn btn-secondary">🏆 Leaderboard</button>
+                        <button id="view-achievements" class="btn btn-secondary">🏅 Achievements</button>
+                        
+                        <div class="settings-panel">
+                            <div class="setting-item">
+                                <span>Sound Effects</span>
+                                <button id="toggle-sound" class="btn-toggle active">ON</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -75,9 +119,17 @@
             <div class="container">
                 <h2>Game Lobby</h2>
                 <div class="room-info">
-                    <p>Room ID: <span id="current-room-id" class="highlight"></span></p>
-                    <p>Mode: <span id="lobby-game-mode" class="highlight"></span></p>
-                    <small>Share this ID with friends to play together!</small>
+                    <div class="room-info-grid">
+                        <div class="room-detail">
+                            <label>Room ID:</label>
+                            <span id="current-room-id" class="highlight"></span>
+                        </div>
+                        <div class="room-detail">
+                            <label>Mode:</label>
+                            <span id="lobby-game-mode" class="highlight"></span>
+                        </div>
+                    </div>
+                    <small>Share this Room ID with friends to play together!</small>
                 </div>
                 
                 <div class="players-list">

@@ -27,9 +27,10 @@ const powerUpTypes = {
 };
 
 class GameRoom {
-    constructor(id, gameMode = 'classic') {
+    constructor(id, gameMode = 'classic', password = null) {
         this.id = id;
         this.gameMode = gameMode;
+        this.password = password;
         this.players = new Map();
         this.gameState = 'waiting'; // waiting, countdown, active, finished
         this.roundNumber = 0;
@@ -40,6 +41,7 @@ class GameRoom {
         this.roundResults = [];
         this.powerUpsEnabled = gameMode === 'powerUp' || gameMode === 'marathon';
         this.chatMessages = [];
+        this.createdAt = Date.now();
     }
 
     getMaxRounds(gameMode) {
@@ -70,6 +72,24 @@ class GameRoom {
         if (this.players.size === 0) {
             this.cleanup();
         }
+    }
+
+    cleanup() {
+        // Clear chat messages when room is empty
+        this.chatMessages = [];
+        // Clear any running timers
+        if (this.countdownTimer) {
+            clearInterval(this.countdownTimer);
+            this.countdownTimer = null;
+        }
+        if (this.gameTimer) {
+            clearTimeout(this.gameTimer);
+            this.gameTimer = null;
+        }
+        // Reset game state
+        this.gameState = 'waiting';
+        this.roundNumber = 0;
+        this.roundResults = [];
     }
 
     startCountdown() {
@@ -262,7 +282,7 @@ io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
     socket.on('join-room', (data) => {
-        const { roomId, playerName, gameMode } = data;
+        const { roomId, playerName, gameMode, password } = data;
         
         // Validate input
         if (!roomId || !playerName || typeof roomId !== 'string' || typeof playerName !== 'string') {
@@ -283,9 +303,17 @@ io.on('connection', (socket) => {
             socket.leave(socket.roomId);
         }
         
-        if (!gameRooms.has(roomId)) {
-            gameRooms.set(roomId, new GameRoom(roomId, gameMode || 'classic'));
-            console.log(`Created new room: ${roomId} with mode: ${gameMode || 'classic'}`);
+        // Check if room exists and validate password
+        if (gameRooms.has(roomId)) {
+            const existingRoom = gameRooms.get(roomId);
+            if (existingRoom.password && existingRoom.password !== password) {
+                socket.emit('error', 'Incorrect room password');
+                return;
+            }
+        } else {
+            // Create new room with password if provided
+            gameRooms.set(roomId, new GameRoom(roomId, gameMode || 'classic', password || null));
+            console.log(`Created new room: ${roomId} with mode: ${gameMode || 'classic'}${password ? ' (password protected)' : ''}`);
         }
 
         const room = gameRooms.get(roomId);
