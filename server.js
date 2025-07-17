@@ -32,6 +32,7 @@ class GameRoom {
         this.gameMode = gameMode;
         this.password = password;
         this.players = new Map();
+        this.spectators = new Set(); // Track spectators
         this.gameState = 'waiting'; // waiting, countdown, active, finished
         this.roundNumber = 0;
         this.maxRounds = this.getMaxRounds(gameMode);
@@ -42,6 +43,7 @@ class GameRoom {
         this.powerUpsEnabled = gameMode === 'powerUp' || gameMode === 'marathon';
         this.chatMessages = [];
         this.createdAt = Date.now();
+        this.lastActivity = Date.now(); // Track activity for cleanup
     }
 
     getMaxRounds(gameMode) {
@@ -280,6 +282,9 @@ class GameRoom {
 // Socket.IO connection handling
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
+    
+    // Track connection time for analytics
+    socket.connectedAt = Date.now();
 
     socket.on('join-room', (data) => {
         const { roomId, playerName, gameMode, password } = data;
@@ -414,7 +419,7 @@ io.on('connection', (socket) => {
         room.handleTap(socket.id);
     });
 
-    socket.on('get-leaderboard', () => {
+        socket.on('get-leaderboard', () => {
         const leaderboard = Array.from(playerStats.entries())
             .map(([name, stats]) => ({
                 name: name,
@@ -426,8 +431,57 @@ io.on('connection', (socket) => {
             }))
             .sort((a, b) => b.avgScore - a.avgScore)
             .slice(0, 10);
+        
+        socket.emit('leaderboard-data', leaderboard);
+    });
 
-        socket.emit('leaderboard', leaderboard);
+    // Spectator mode features
+    socket.on('spectate-room', (data) => {
+        const { roomId } = data;
+        
+        if (!gameRooms.has(roomId)) {
+            socket.emit('error', 'Room not found');
+            return;
+        }
+        
+        const room = gameRooms.get(roomId);
+        
+        // Add to spectators
+        if (!room.spectators) {
+            room.spectators = new Set();
+        }
+        room.spectators.add(socket.id);
+        socket.spectatingRoom = roomId;
+        
+        // Send initial room state
+        socket.emit('spectate-update', {
+            players: Array.from(room.players.values()).map(p => ({
+                name: p.name,
+                score: p.totalScore,
+                isReady: p.isReady
+            })),
+            gameState: {
+                state: room.gameState,
+                round: room.currentRound,
+                maxRounds: room.maxRounds
+            }
+        });
+        
+        console.log(`Spectator ${socket.id} joined room ${roomId}`);
+    });
+
+    socket.on('leave-spectate', (data) => {
+        const { roomId } = data;
+        
+        if (gameRooms.has(roomId)) {
+            const room = gameRooms.get(roomId);
+            if (room.spectators) {
+                room.spectators.delete(socket.id);
+            }
+        }
+        
+        socket.spectatingRoom = null;
+        console.log(`Spectator ${socket.id} left room ${roomId}`);
     });
 
     socket.on('chat-message', (data) => {

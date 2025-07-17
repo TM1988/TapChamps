@@ -29,6 +29,10 @@ class TapRaceGame {
         this.soundManager = new SoundManager();
         this.powerUpSystem = new PowerUpSystem();
         this.achievementSystem = new AchievementSystem();
+        this.playerProfile = new PlayerProfile();
+        this.spectatorMode = new SpectatorMode(this);
+        this.gameAnalytics = new GameAnalytics();
+        this.matchmaking = new MatchmakingSystem();
         
         this.initializeElements();
         this.setupEventListeners();
@@ -36,6 +40,33 @@ class TapRaceGame {
         
         // Debounced functions for performance
         this.debouncedUpdatePlayers = this.debounce(this.updatePlayersList.bind(this), 100);
+        
+        // Initialize profile system
+        this.initializeProfileSystem();
+    }
+    
+    initializeProfileSystem() {
+        // Show profile creation if user doesn't have a profile
+        setTimeout(() => {
+            if (!this.playerProfile.isProfileComplete()) {
+                this.playerProfile.showProfileCreation();
+            } else {
+                // Auto-fill name inputs with profile data
+                this.autoFillProfileData();
+            }
+        }, 1000);
+    }
+    
+    autoFillProfileData() {
+        if (this.playerProfile.isProfileComplete()) {
+            const displayName = this.playerProfile.getDisplayName();
+            if (this.playerNameJoinInput && !this.playerNameJoinInput.value) {
+                this.playerNameJoinInput.value = displayName;
+            }
+            if (this.playerNameCreateInput && !this.playerNameCreateInput.value) {
+                this.playerNameCreateInput.value = displayName;
+            }
+        }
     }
 
     initializeElements() {
@@ -69,6 +100,8 @@ class TapRaceGame {
         // Secondary buttons
         this.viewLeaderboardBtn = document.getElementById('view-leaderboard');
         this.viewAchievementsBtn = document.getElementById('view-achievements');
+        this.viewProfileBtn = document.getElementById('view-profile');
+        this.spectateBtn = document.getElementById('spectate-btn');
         this.toggleSoundBtn = document.getElementById('toggle-sound');
         
         // UI sections
@@ -166,6 +199,8 @@ class TapRaceGame {
         // Secondary actions
         addUniversalClickHandler(this.viewLeaderboardBtn, () => this.showLeaderboard());
         addUniversalClickHandler(this.viewAchievementsBtn, () => this.showAchievements());
+        addUniversalClickHandler(this.viewProfileBtn, () => this.playerProfile.showProfile());
+        addUniversalClickHandler(this.spectateBtn, () => this.toggleSpectateSection());
         addUniversalClickHandler(this.toggleSoundBtn, () => this.toggleSound());
         
         // Game mode selection
@@ -406,9 +441,15 @@ class TapRaceGame {
 
     // Game Action Methods
     joinExistingGame() {
-        const playerName = this.playerNameJoinInput.value.trim();
+        let playerName = this.playerNameJoinInput.value.trim();
         const roomId = this.roomIdInput.value.trim();
         const password = this.joinRoomPasswordInput.value.trim();
+        
+        // Auto-fill from profile if available and input is empty
+        if (!playerName && this.playerProfile.isProfileComplete()) {
+            playerName = this.playerProfile.getDisplayName();
+            this.playerNameJoinInput.value = playerName;
+        }
         
         if (!playerName) {
             this.showNotification('Please enter your name', 'error');
@@ -437,18 +478,28 @@ class TapRaceGame {
         this.playerName = playerName;
         console.log('Joining existing room:', roomId, 'as', playerName);
         
-        this.socket.emit('join-room', {
+        // Include profile data if available
+        const joinData = {
             playerName,
             roomId,
             password: password || null,
-            gameMode: 'classic' // Default for joining existing rooms
-        });
+            gameMode: 'classic', // Default for joining existing rooms
+            profileData: this.playerProfile.isProfileComplete() ? this.playerProfile.getPublicProfile() : null
+        };
+        
+        this.socket.emit('join-room', joinData);
     }
 
     createNewGame() {
-        const playerName = this.playerNameCreateInput.value.trim();
+        let playerName = this.playerNameCreateInput.value.trim();
         const gameMode = this.gameModeSelect.value;
         const password = this.createRoomPasswordInput.value.trim();
+        
+        // Auto-fill from profile if available and input is empty
+        if (!playerName && this.playerProfile.isProfileComplete()) {
+            playerName = this.playerProfile.getDisplayName();
+            this.playerNameCreateInput.value = playerName;
+        }
         
         if (!playerName) {
             this.showNotification('Please enter your name', 'error');
@@ -472,12 +523,16 @@ class TapRaceGame {
         const roomId = this.generateRoomId();
         console.log('Creating new room:', roomId, 'as', playerName, 'mode:', gameMode);
         
-        this.socket.emit('join-room', {
+        // Include profile data if available
+        const createData = {
             playerName,
             roomId,
             password: password || null,
-            gameMode
-        });
+            gameMode,
+            profileData: this.playerProfile.isProfileComplete() ? this.playerProfile.getPublicProfile() : null
+        };
+        
+        this.socket.emit('join-room', createData);
     }
 
     joinGame() {
@@ -805,11 +860,19 @@ class TapRaceGame {
             playerItem.className = `player-item ${player.isReady ? 'ready' : ''}`;
             
             playerItem.innerHTML = `
-                <div class="player-name">${this.escapeHtml(player.name)}</div>
+                <div class="player-name clickable-player-name" data-player-id="${player.id || player.name}">${this.escapeHtml(player.name)}</div>
                 <div class="player-status ${player.isReady ? 'status-ready' : 'status-waiting'}">
                     ${player.isReady ? '✓ Ready' : '⏳ Waiting'}
                 </div>
             `;
+            
+            // Add click handler for viewing player profile
+            const playerNameElement = playerItem.querySelector('.clickable-player-name');
+            if (playerNameElement && player.name !== this.playerProfile.getDisplayName()) {
+                playerNameElement.addEventListener('click', () => {
+                    this.showPlayerProfile(player);
+                });
+            }
             
             fragment.appendChild(playerItem);
         });
@@ -821,6 +884,161 @@ class TapRaceGame {
         // Update waiting message efficiently
         const allReady = players.length > 0 && players.every(p => p.isReady);
         this.waitingMessage.classList.toggle('hidden', allReady || !this.isReady);
+    }
+
+    showPlayerProfile(player) {
+        // Create or show player profile modal
+        let playerProfileModal = document.getElementById('other-player-profile-modal');
+        
+        if (!playerProfileModal) {
+            // Create the modal if it doesn't exist
+            playerProfileModal = document.createElement('div');
+            playerProfileModal.id = 'other-player-profile-modal';
+            playerProfileModal.className = 'modal';
+            playerProfileModal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Player Profile</h2>
+                        <button id="close-other-player-profile" class="close-btn">&times;</button>
+                    </div>
+                    <div class="profile-content">
+                        <div class="profile-main">
+                            <div class="player-avatar-large" id="other-player-avatar">👤</div>
+                            <div class="player-info">
+                                <div class="profile-display-name" id="other-player-display-name">Player Name</div>
+                                <div class="profile-username" id="other-player-username">@username</div>
+                                <div class="profile-bio" id="other-player-bio">Bio goes here</div>
+                            </div>
+                        </div>
+                        <div class="profile-level-section">
+                            <div class="player-title" id="other-player-title">Title</div>
+                            <div class="player-level" id="other-player-level">Level 1</div>
+                        </div>
+                        <div class="profile-stats">
+                            <h3>Statistics</h3>
+                            <div id="other-player-stats" class="stats-grid"></div>
+                        </div>
+                        <div class="profile-badges">
+                            <h3>Badges</h3>
+                            <div id="other-player-badges" class="badges-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(playerProfileModal);
+            
+            // Add close handler
+            const closeBtn = playerProfileModal.querySelector('#close-other-player-profile');
+            closeBtn.addEventListener('click', () => {
+                playerProfileModal.classList.remove('show');
+            });
+            
+            // Close on outside click
+            playerProfileModal.addEventListener('click', (e) => {
+                if (e.target === playerProfileModal) {
+                    playerProfileModal.classList.remove('show');
+                }
+            });
+        }
+        
+        // Update profile data
+        this.updateOtherPlayerProfile(player);
+        
+        // Show modal
+        playerProfileModal.classList.add('show');
+    }
+
+    updateOtherPlayerProfile(player) {
+        // Update avatar
+        const avatarElement = document.getElementById('other-player-avatar');
+        if (avatarElement) {
+            if (player.profile && player.profile.isCustomAvatar && player.profile.avatar && player.profile.avatar.startsWith('data:')) {
+                avatarElement.innerHTML = `<img src="${player.profile.avatar}" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+            } else {
+                avatarElement.textContent = player.profile?.avatar || '👤';
+                avatarElement.innerHTML = player.profile?.avatar || '👤';
+            }
+        }
+        
+        // Update name and info
+        const displayNameElement = document.getElementById('other-player-display-name');
+        const usernameElement = document.getElementById('other-player-username');
+        const bioElement = document.getElementById('other-player-bio');
+        const titleElement = document.getElementById('other-player-title');
+        const levelElement = document.getElementById('other-player-level');
+        
+        if (displayNameElement) {
+            displayNameElement.textContent = player.profile?.displayName || player.name || 'Anonymous';
+        }
+        if (usernameElement) {
+            usernameElement.textContent = `@${player.profile?.username || 'anonymous'}`;
+        }
+        if (bioElement) {
+            bioElement.textContent = player.profile?.bio || 'No bio set';
+        }
+        if (titleElement) {
+            titleElement.textContent = player.profile?.title || 'Rookie Tapper';
+        }
+        if (levelElement) {
+            levelElement.textContent = `Level ${player.profile?.level || 1}`;
+        }
+        
+        // Update stats
+        const statsElement = document.getElementById('other-player-stats');
+        if (statsElement && player.profile) {
+            const winRate = player.profile.totalGamesPlayed > 0 
+                ? ((player.profile.totalWins / player.profile.totalGamesPlayed) * 100).toFixed(1)
+                : 0;
+            
+            const playTimeHours = Math.floor((player.profile.totalPlayTime || 0) / 3600);
+            const playTimeMinutes = Math.floor(((player.profile.totalPlayTime || 0) % 3600) / 60);
+
+            statsElement.innerHTML = `
+                <div class="stat-item">
+                    <div class="stat-value">${player.profile.totalGamesPlayed || 0}</div>
+                    <div class="stat-label">Games Played</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${player.profile.totalWins || 0}</div>
+                    <div class="stat-label">Games Won</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${winRate}%</div>
+                    <div class="stat-label">Win Rate</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${player.profile.bestStreak || 0}</div>
+                    <div class="stat-label">Best Streak</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${playTimeHours}h ${playTimeMinutes}m</div>
+                    <div class="stat-label">Play Time</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${player.profile.favoriteMode || 'classic'}</div>
+                    <div class="stat-label">Favorite Mode</div>
+                </div>
+            `;
+        }
+        
+        // Update badges
+        const badgesElement = document.getElementById('other-player-badges');
+        if (badgesElement && player.profile) {
+            const badges = [];
+            if ((player.profile.level || 1) >= 5) badges.push({ name: 'Fast Learner', icon: '🚀' });
+            if ((player.profile.totalWins || 0) >= 10) badges.push({ name: 'Winner', icon: '🏆' });
+            if ((player.profile.bestStreak || 0) >= 5) badges.push({ name: 'Streak Master', icon: '🔥' });
+            if ((player.profile.totalGamesPlayed || 0) >= 50) badges.push({ name: 'Dedicated', icon: '💎' });
+
+            badgesElement.innerHTML = badges.length > 0 
+                ? badges.map(badge => `
+                    <div class="badge-item">
+                        <div class="badge-icon">${badge.icon}</div>
+                        <div class="badge-name">${badge.name}</div>
+                    </div>
+                `).join('')
+                : '<div class="no-badges">No badges earned yet</div>';
+        }
     }
 
     updateScores() {
@@ -1106,23 +1324,129 @@ class TapRaceGame {
         });
     }
 
-    updateActivePowerUps(activePowerUps) {
-        this.activePowerupsContainer.innerHTML = '';
+    toggleSpectateSection() {
+        const spectateSection = document.getElementById('spectate-section');
+        if (spectateSection) {
+            spectateSection.classList.toggle('hidden');
+        }
+    }
+
+    // Enhanced game result handling with profile updates
+    handleGameComplete(results) {
+        const playerResult = results.find(r => r.playerId === this.socket.id);
+        if (playerResult) {
+            // Update player profile
+            const gameResult = {
+                won: playerResult.rank === 1,
+                currentStreak: this.calculateStreak(playerResult),
+                gameDuration: this.calculateGameDuration(),
+                rank: playerResult.rank,
+                totalPlayers: results.length
+            };
+            
+            this.playerProfile.updateStats(gameResult);
+        }
         
-        activePowerUps.forEach(powerUp => {
-            const element = document.createElement('div');
-            element.className = 'active-powerup';
-            
-            const timeLeft = Math.ceil((powerUp.endTime - Date.now()) / 1000);
-            
-            element.innerHTML = `
-                <span>${powerUp.icon}</span>
-                <span>${powerUp.name}</span>
-                <span class="powerup-timer">${timeLeft}s</span>
-            `;
-            
-            this.activePowerupsContainer.appendChild(element);
+        // Existing achievement check
+        this.checkAndShowAchievements(playerResult, results);
+    }
+
+    calculateStreak(playerResult) {
+        // Simple streak calculation - in real implementation, track this on server
+        return playerResult.rank === 1 ? 1 : 0;
+    }
+
+    calculateGameDuration() {
+        // Estimate game duration based on rounds
+        return this.currentRound * 15; // ~15 seconds per round average
+    }
+
+    // Performance optimization: Debounce tap handling
+    handleTap() {
+        if (!this.canTap || this.tapHandled) return;
+        
+        this.tapHandled = true;
+        const reactionTime = Date.now() - this.roundStartTime;
+        
+        // Optimized: Single socket emit with all data
+        this.socket.emit('tap', {
+            roomId: this.roomId,
+            reactionTime,
+            round: this.currentRound,
+            timestamp: Date.now()
         });
+        
+        // Visual feedback without blocking
+        requestAnimationFrame(() => {
+            this.provideTapFeedback(reactionTime);
+        });
+        
+        // Reset tap handling after small delay to prevent double taps
+        setTimeout(() => {
+            this.tapHandled = false;
+        }, 100);
+    }
+
+    provideTapFeedback(reactionTime) {
+        if (this.tapCircle) {
+            this.tapCircle.style.transform = 'scale(0.95)';
+            this.tapCircle.style.background = this.getScoreColor(reactionTime);
+            
+            setTimeout(() => {
+                this.tapCircle.style.transform = 'scale(1)';
+            }, 150);
+        }
+    }
+
+    getScoreColor(reactionTime) {
+        if (reactionTime < 200) return 'linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%)'; // Green
+        if (reactionTime < 300) return 'linear-gradient(135deg, #FFC107 0%, #FF9800 100%)'; // Yellow
+        if (reactionTime < 500) return 'linear-gradient(135deg, #FF9800 0%, #FF5722 100%)'; // Orange
+        return 'linear-gradient(135deg, #F44336 0%, #E91E63 100%)'; // Red
+    }
+
+    // Enhanced activity feed with more details
+    updateLiveActivity(activity) {
+        if (!this.activityContent) return;
+        
+        const activityElement = document.createElement('div');
+        activityElement.className = 'activity-item';
+        
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const icon = this.getActivityIcon(activity.type);
+        
+        activityElement.innerHTML = `
+            <span class="activity-icon">${icon}</span>
+            <span class="activity-text">${activity.message}</span>
+            <span class="activity-time">${timestamp}</span>
+        `;
+        
+        this.activityContent.insertBefore(activityElement, this.activityContent.firstChild);
+        
+        // Keep only last 10 activities for performance
+        while (this.activityContent.children.length > 10) {
+            this.activityContent.removeChild(this.activityContent.lastChild);
+        }
+        
+        // Auto-fade animation
+        requestAnimationFrame(() => {
+            activityElement.style.opacity = '1';
+            activityElement.style.transform = 'translateX(0)';
+        });
+    }
+
+    getActivityIcon(type) {
+        const icons = {
+            'join': '👋',
+            'leave': '👋',
+            'ready': '✅',
+            'win': '🏆',
+            'achievement': '🏅',
+            'powerup': '⚡',
+            'fast': '💨',
+            'slow': '🐌'
+        };
+        return icons[type] || '📢';
     }
 }
 

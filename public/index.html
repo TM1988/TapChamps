@@ -102,6 +102,16 @@
                     <div id="secondary-actions" class="secondary-actions">
                         <button id="view-leaderboard" class="btn btn-secondary">🏆 Leaderboard</button>
                         <button id="view-achievements" class="btn btn-secondary">🏅 Achievements</button>
+                        <button id="view-profile" class="btn btn-secondary">👤 Profile</button>
+                        <button id="spectate-btn" class="btn btn-secondary">👁️ Spectate Game</button>
+                        
+                        <!-- Spectate Input -->
+                        <div id="spectate-section" class="spectate-section hidden">
+                            <div class="input-group">
+                                <input type="text" id="spectate-room-id" placeholder="Room ID to spectate" maxlength="10">
+                                <small>Enter a room ID to watch the game</small>
+                            </div>
+                        </div>
                         
                         <div class="settings-panel">
                             <div class="setting-item">
@@ -206,6 +216,117 @@
             </div>
         </div>
 
+        <!-- Player Profile -->
+        <div id="profile-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Player Profile</h2>
+                    <button id="close-profile" class="close-btn">&times;</button>
+                </div>
+                <div class="profile-content">
+                    <div class="profile-main">
+                        <div class="player-avatar-large" id="player-avatar">👤</div>
+                        <div class="player-info">
+                            <div class="profile-display-name" id="profile-display-name">Display Name</div>
+                            <div class="profile-username" id="profile-username-display">@username</div>
+                            <div class="profile-bio" id="profile-bio-display">Bio goes here</div>
+                        </div>
+                    </div>
+                    <div class="profile-level-section">
+                        <div class="player-title" id="player-title">Rookie Tapper</div>
+                        <div class="player-level" id="player-level">Level 1</div>
+                        <div class="xp-container">
+                            <div class="xp-bar-bg">
+                                <div class="xp-bar" id="xp-bar"></div>
+                            </div>
+                            <div class="xp-text" id="player-xp">0/100 XP</div>
+                        </div>
+                    </div>
+                    <div class="profile-stats">
+                        <h3>Statistics</h3>
+                        <div id="stats-container" class="stats-grid"></div>
+                    </div>
+                    <div class="profile-badges">
+                        <h3>Badges</h3>
+                        <div id="badges-container" class="badges-grid"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Creation Modal -->
+        <div id="profile-creation-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Create Your Profile</h2>
+                </div>
+                <div class="profile-creation-content">
+                    <form id="profile-creation-form">
+                        <div class="avatar-selection">
+                            <h3>Choose Your Avatar</h3>
+                            <div class="avatar-options">
+                                <div class="preset-avatars" id="preset-avatars">
+                                    <div class="avatar-option" data-avatar="😎">😎</div>
+                                    <div class="avatar-option" data-avatar="🚀">🚀</div>
+                                    <div class="avatar-option" data-avatar="⚡">⚡</div>
+                                    <div class="avatar-option" data-avatar="🎯">🎯</div>
+                                    <div class="avatar-option" data-avatar="🔥">🔥</div>
+                                    <div class="avatar-option" data-avatar="💎">💎</div>
+                                    <div class="avatar-option" data-avatar="🏆">🏆</div>
+                                    <div class="avatar-option" data-avatar="🎮">🎮</div>
+                                </div>
+                                <div class="custom-avatar-section">
+                                    <div class="custom-avatar-preview" id="custom-avatar-preview">
+                                        <span class="upload-text">+ Upload Custom</span>
+                                    </div>
+                                    <input type="file" id="custom-avatar-input" accept="image/*" style="display: none;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="profile-fields">
+                            <div class="input-group">
+                                <label for="profile-username">Username</label>
+                                <input type="text" id="profile-username" placeholder="Enter username" maxlength="20" required>
+                                <small>This will be your game name (3-20 characters)</small>
+                            </div>
+                            
+                            <div class="input-group">
+                                <label for="profile-display-name">Display Name</label>
+                                <input type="text" id="profile-display-name" placeholder="Enter display name" maxlength="25">
+                                <small>Optional: How others see you (defaults to username)</small>
+                            </div>
+                            
+                            <div class="input-group">
+                                <label for="profile-bio">Bio</label>
+                                <textarea id="profile-bio" placeholder="Tell others about yourself..." maxlength="150" rows="3"></textarea>
+                                <small>Optional: A short description (max 150 characters)</small>
+                            </div>
+                        </div>
+                        
+                        <div class="profile-creation-actions">
+                            <button type="submit" class="btn btn-primary">Create Profile</button>
+                            <button type="button" id="skip-profile-creation" class="btn btn-secondary">Skip for Now</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spectator Mode -->
+        <div id="spectate-screen" class="screen">
+            <div class="container">
+                <h2>👁️ Spectating Game</h2>
+                <div class="spectate-info">
+                    <div id="spectate-players" class="spectate-players-list"></div>
+                    <div id="spectate-game-area" class="spectate-game-area">
+                        <div class="spectate-status">Connecting...</div>
+                    </div>
+                </div>
+                <button id="leave-spectate" class="btn btn-secondary">Stop Spectating</button>
+            </div>
+        </div>
+
         <!-- Tournament -->
         <div id="tournament" class="screen">
             <div class="container">
@@ -255,6 +376,8 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="sounds.js"></script>
     <script src="features.js"></script>
+    <script src="enhancements.js"></script>
+    <script src="profile.js"></script>
     <script src="game.js"></script>
 </body>
 </html>
